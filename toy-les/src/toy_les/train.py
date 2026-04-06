@@ -10,7 +10,7 @@ from typing import Any, Dict
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from .dataset import ToyLESDataset
 from .model import ModelConfig, ShortRangeOnlyModel, ToyLESModel
@@ -52,11 +52,24 @@ def build_model(model_name: str, model_cfg: ModelConfig) -> torch.nn.Module:
     raise ValueError(f"Unknown model name: {model_name}")
 
 
-def build_dataloaders(dataset_path: str | Path, train_cfg: TrainConfig) -> Dict[str, DataLoader]:
+def build_dataloaders(
+    dataset_path: str | Path,
+    train_cfg: TrainConfig,
+    seed: int,
+    train_subset_size: int | None = None,
+) -> Dict[str, DataLoader]:
     dataset_path = Path(dataset_path)
     train_ds = ToyLESDataset(dataset_path, split="train")
     val_ds = ToyLESDataset(dataset_path, split="val")
     test_ds = ToyLESDataset(dataset_path, split="test")
+
+    if train_subset_size is not None:
+        if train_subset_size <= 0:
+            raise ValueError("train_subset_size must be positive.")
+        train_subset_size = min(train_subset_size, len(train_ds))
+        rng = np.random.default_rng(seed)
+        subset_idx = rng.choice(len(train_ds), size=train_subset_size, replace=False)
+        train_ds = Subset(train_ds, np.sort(subset_idx).tolist())
 
     return {
         "train": DataLoader(train_ds, batch_size=train_cfg.batch_size, shuffle=True),
@@ -196,11 +209,12 @@ def train_model(
     model_cfg: ModelConfig,
     train_cfg: TrainConfig,
     seed: int,
+    train_subset_size: int | None = None,
 ) -> Dict[str, Any]:
     set_seed(seed)
 
     device = torch.device(train_cfg.device)
-    dataloaders = build_dataloaders(dataset_path, train_cfg)
+    dataloaders = build_dataloaders(dataset_path, train_cfg, seed=seed, train_subset_size=train_subset_size)
     model = build_model(model_name, model_cfg).to(device)
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -208,7 +222,10 @@ def train_model(
         weight_decay=train_cfg.weight_decay,
     )
 
-    run_name = train_cfg.run_name or f"{model_name}_seed{seed}"
+    if train_subset_size is None:
+        run_name = train_cfg.run_name or f"{model_name}_seed{seed}"
+    else:
+        run_name = train_cfg.run_name or f"{model_name}_n{train_subset_size}_seed{seed}"
     run_dir = Path(train_cfg.save_dir) / run_name
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -244,6 +261,7 @@ def train_model(
     checkpoint = {
         "model_name": model_name,
         "seed": seed,
+        "train_subset_size": train_subset_size,
         "model_config": model_cfg.to_dict(),
         "train_config": train_cfg.to_dict(),
         "best_epoch": best_state["epoch"],
@@ -257,6 +275,7 @@ def train_model(
         "model_name": model_name,
         "seed": seed,
         "dataset_path": str(Path(dataset_path)),
+        "train_subset_size": train_subset_size,
         "best_epoch": best_state["epoch"],
         "best_val_metrics": best_state["val_metrics"],
         "test_metrics": test_metrics,
@@ -295,4 +314,55 @@ def run_ablation(
     save_dir = Path(train_cfg.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     (save_dir / f"ablation_seed{seed}.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+    return summary
+
+
+def run_learning_curve(
+    dataset_path: str | Path,
+    model_cfg: ModelConfig,
+    train_cfg: TrainConfig,
+    seed: int,
+    subset_sizes: list[int],
+    modes: list[str] | None = None,
+) -> Dict[str, Any]:
+    modes = modes or ["sr", "sr_lr"]
+    results: Dict[str, Dict[int, Dict[str, Any]]] = {mode: {} for mode in modes}
+
+    for subset_size in subset_sizes:
+        for model_name in modes:
+            run_cfg = TrainConfig(
+                **{
+                    **train_cfg.to_dict(),
+                    "run_name": f"{model_name}_n{subset_size}_seed{seed}",
+                }
+            )
+            results[model_name][subset_size] = train_model(
+                dataset_path=dataset_path,
+                model_name=model_name,
+                model_cfg=model_cfg,
+                train_cfg=run_cfg,
+                seed=seed,
+                train_subset_size=subset_size,
+            )
+
+    summary = {
+        "seed": seed,
+        "dataset_path": str(Path(dataset_path)),
+        "subset_sizes": subset_sizes,
+        "results": {
+            model_name: {
+                str(subset_size): {
+                    "best_epoch": result["best_epoch"],
+                    "best_val_metrics": result["best_val_metrics"],
+                    "test_metrics": result["test_metrics"],
+                }
+                for subset_size, result in entries.items()
+            }
+            for model_name, entries in results.items()
+        },
+    }
+
+    save_dir = Path(train_cfg.save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    (save_dir / f"learning_curve_seed{seed}.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
     return summary

@@ -44,9 +44,13 @@ and large data dependencies.
 - `src/toy_les/dataset.py`: `.npz` dataset reader
 - `src/toy_les/model.py`: minimal `SR-only` and `SR+LR(latent charge)` models
 - `src/toy_les/train.py`: training loop and ablation runner
+- `src/toy_les/eval.py`: checkpoint evaluation and metrics aggregation
+- `src/toy_les/plot_utils.py`: parity, charge, ablation, and learning-curve plots
 - `scripts/generate_data.py`: dataset generation entry point
 - `scripts/train.py`: single-model training entry point
 - `scripts/run_ablation.py`: `SR-only` vs `SR+LR` comparison entry point
+- `scripts/run_learning_curve.py`: subset-size scaling experiment
+- `scripts/eval.py`: figure generation for trained checkpoints
 
 ## Install
 
@@ -79,6 +83,25 @@ Run the `SR-only` vs `SR+LR` ablation:
 python toy-les/scripts/run_ablation.py \
   --dataset toy-les/data/processed/toy_les_smoke.npz \
   --epochs 5
+```
+
+Run a tiny learning-curve experiment:
+
+```bash
+python toy-les/scripts/run_learning_curve.py \
+  --dataset toy-les/data/processed/toy_les_smoke.npz \
+  --subset-sizes 8 16 \
+  --epochs 3
+```
+
+Generate evaluation figures from trained checkpoints:
+
+```bash
+python toy-les/scripts/eval.py \
+  --dataset toy-les/data/processed/toy_les_smoke.npz \
+  --checkpoint toy-les/outputs/runs/sr_n16_seed42/best.pt toy-les/outputs/runs/sr_lr_n16_seed42/best.pt \
+  --learning-curve-summary toy-les/outputs/runs/learning_curve_seed42.json \
+  --output-dir toy-les/outputs/figures/smoke_eval
 ```
 
 Generate a larger default dataset:
@@ -127,6 +150,18 @@ Training writes results under `toy-les/outputs/runs/`:
 The ablation script also writes:
 
 - `toy-les/outputs/runs/ablation_seed<seed>.json`
+
+The learning-curve script writes:
+
+- `toy-les/outputs/runs/learning_curve_seed<seed>.json`
+
+The evaluation script writes:
+
+- parity plots for energy and forces
+- latent charge vs true charge scatter for `sr_lr`
+- `SR-only` vs `SR+LR` bar plots
+- a learning-curve plot
+- `evaluation_report.json` with metric summaries and figure paths
 
 ## Current Scope and Limitations
 

@@ -4,4 +4,5 @@ __pycache__/
 
 outputs/
 toy-les/data/processed/
+toy-les/.mplcache/
 toy-les/outputs/
