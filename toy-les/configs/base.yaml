@@ -1,0 +1,26 @@
+seed: 42
+
+dataset:
+  n_train: 2000
+  n_val: 250
+  n_test: 250
+  n_particles: 16
+  box_size: 6.0
+  min_dist: 0.8
+  max_position_attempts: 5000
+
+physics:
+  q0: 1.0
+  alpha_charge_transfer: 0.15
+  charge_transfer_length: 1.2
+  charge_cutoff: 2.0
+  eps_sr_same: 2.0
+  eps_sr_opposite: 1.2
+  rho_sr_same: 0.7
+  rho_sr_opposite: 0.85
+  short_range_cutoff: 2.5
+  k_lr: 1.0
+  softening: 0.35
+
+output:
+  path: data/processed/toy_les_dataset.npz
