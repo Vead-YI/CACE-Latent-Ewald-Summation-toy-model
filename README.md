@@ -1,4 +1,4 @@
-# toy-les
+# CACE Latent Ewald Summation Toy Model
 
 Minimal research code for understanding the `short-range + long-range + latent charge`
 idea behind CACE + Latent Ewald Summation, without trying to reproduce the full
@@ -57,7 +57,7 @@ and large data dependencies.
 Create an environment and install the minimal dependencies:
 
 ```bash
-pip install -r toy-les/requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Quick Start
@@ -65,14 +65,14 @@ pip install -r toy-les/requirements.txt
 Generate a smoke-test dataset:
 
 ```bash
-python toy-les/scripts/generate_data.py --preset smoke
+python scripts/generate_data.py --preset smoke
 ```
 
 Train the LES-style model on that smoke dataset:
 
 ```bash
-python toy-les/scripts/train.py \
-  --dataset toy-les/data/processed/toy_les_smoke.npz \
+python scripts/train.py \
+  --dataset data/processed/toy_les_smoke.npz \
   --model sr_lr \
   --epochs 5
 ```
@@ -80,16 +80,16 @@ python toy-les/scripts/train.py \
 Run the `SR-only` vs `SR+LR` ablation:
 
 ```bash
-python toy-les/scripts/run_ablation.py \
-  --dataset toy-les/data/processed/toy_les_smoke.npz \
+python scripts/run_ablation.py \
+  --dataset data/processed/toy_les_smoke.npz \
   --epochs 5
 ```
 
 Run a tiny learning-curve experiment:
 
 ```bash
-python toy-les/scripts/run_learning_curve.py \
-  --dataset toy-les/data/processed/toy_les_smoke.npz \
+python scripts/run_learning_curve.py \
+  --dataset data/processed/toy_les_smoke.npz \
   --subset-sizes 8 16 \
   --epochs 3
 ```
@@ -97,23 +97,23 @@ python toy-les/scripts/run_learning_curve.py \
 Generate evaluation figures from trained checkpoints:
 
 ```bash
-python toy-les/scripts/eval.py \
-  --dataset toy-les/data/processed/toy_les_smoke.npz \
-  --checkpoint toy-les/outputs/runs/sr_n16_seed42/best.pt toy-les/outputs/runs/sr_lr_n16_seed42/best.pt \
-  --learning-curve-summary toy-les/outputs/runs/learning_curve_seed42.json \
-  --output-dir toy-les/outputs/figures/smoke_eval
+python scripts/eval.py \
+  --dataset data/processed/toy_les_smoke.npz \
+  --checkpoint outputs/runs/sr_n16_seed42/best.pt outputs/runs/sr_lr_n16_seed42/best.pt \
+  --learning-curve-summary outputs/runs/learning_curve_seed42.json \
+  --output-dir outputs/figures/smoke_eval
 ```
 
 Generate a larger default dataset:
 
 ```bash
-python toy-les/scripts/generate_data.py
+python scripts/generate_data.py
 ```
 
 Then train with the default config:
 
 ```bash
-python toy-les/scripts/train.py --model sr_lr
+python scripts/train.py --model sr_lr
 ```
 
 ## What the Models Do
@@ -142,18 +142,18 @@ structure.
 
 ## Outputs
 
-Training writes results under `toy-les/outputs/runs/`:
+Training writes results under `outputs/runs/`:
 
 - `<run_name>/best.pt`: best checkpoint by validation loss
 - `<run_name>/metrics.json`: full epoch history and final metrics
 
 The ablation script also writes:
 
-- `toy-les/outputs/runs/ablation_seed<seed>.json`
+- `outputs/runs/ablation_seed<seed>.json`
 
 The learning-curve script writes:
 
-- `toy-les/outputs/runs/learning_curve_seed<seed>.json`
+- `outputs/runs/learning_curve_seed<seed>.json`
 
 The evaluation script writes:
 
@@ -168,7 +168,6 @@ The evaluation script writes:
 - fixed-size particle systems only
 - no periodic long-range summation yet
 - no message passing yet
-- no explicit plotting/evaluation script yet
 - true charge is saved only for evaluation, not used as a loss target
 
 That is intentional: this repository is trying to make the LES architecture easy

@@ -14,7 +14,7 @@ import yaml
 
 from toy_les.data_gen import build_default_bundle
 from toy_les.model import ModelConfig
-from toy_les.train import TrainConfig, run_ablation
+from toy_les.train import TrainConfig, run_learning_curve
 
 
 def load_config(path: Path | None) -> dict:
@@ -36,11 +36,12 @@ def load_config(path: Path | None) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run SR-only vs SR+LR toy LES ablation.")
+    parser = argparse.ArgumentParser(description="Run toy LES learning-curve experiments.")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "base.yaml")
-    parser.add_argument("--dataset", type=Path, default=None, help="Override dataset path from the config.")
+    parser.add_argument("--dataset", type=Path, default=None)
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--device", type=str, default=None)
+    parser.add_argument("--subset-sizes", type=int, nargs="+", required=True)
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -51,26 +52,28 @@ def main() -> None:
         train_cfg_dict["device"] = args.device
     train_cfg_dict["save_dir"] = str((ROOT / train_cfg_dict["save_dir"]).resolve())
 
-    model_cfg = ModelConfig(**cfg["model"])
     train_cfg = TrainConfig.from_dict(train_cfg_dict)
+    model_cfg = ModelConfig(**cfg["model"])
     dataset_path = args.dataset if args.dataset is not None else ROOT / cfg["output"]["path"]
     if not dataset_path.exists():
         raise SystemExit(
-            f"Dataset not found at {dataset_path}. Run `python toy-les/scripts/generate_data.py` first."
+            f"Dataset not found at {dataset_path}. Run `python scripts/generate_data.py` first."
         )
 
-    summary = run_ablation(
+    summary = run_learning_curve(
         dataset_path=dataset_path,
         model_cfg=model_cfg,
         train_cfg=train_cfg,
         seed=cfg["seed"],
+        subset_sizes=args.subset_sizes,
         modes=["sr", "sr_lr"],
     )
 
-    print("Ablation summary:")
-    for name, result in summary["results"].items():
-        print(f"  {name}: {result['test_metrics']}")
-    summary_path = ROOT / train_cfg.save_dir / f"ablation_seed{cfg['seed']}.json"
+    print("Learning curve summary:")
+    for model_name, results in summary["results"].items():
+        for subset_size, entry in results.items():
+            print(f"  {model_name} n={subset_size}: {entry['test_metrics']}")
+    summary_path = Path(train_cfg.save_dir) / f"learning_curve_seed{cfg['seed']}.json"
     print(f"Saved summary to {summary_path.resolve()}")
 
 

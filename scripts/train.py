@@ -12,9 +12,10 @@ if str(SRC) not in sys.path:
 
 import yaml
 
-from toy_les.data_gen import build_default_bundle
+from toy_les.data_gen import DatasetConfig, build_default_bundle
 from toy_les.model import ModelConfig
-from toy_les.train import TrainConfig, run_learning_curve
+from toy_les.physics import ToyPhysicsConfig
+from toy_les.train import TrainConfig, train_model
 
 
 def load_config(path: Path | None) -> dict:
@@ -36,45 +37,47 @@ def load_config(path: Path | None) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run toy LES learning-curve experiments.")
+    parser = argparse.ArgumentParser(description="Train a minimal toy LES model.")
     parser.add_argument("--config", type=Path, default=ROOT / "configs" / "base.yaml")
-    parser.add_argument("--dataset", type=Path, default=None)
+    parser.add_argument("--dataset", type=Path, default=None, help="Override dataset path from the config.")
+    parser.add_argument("--model", choices=["sr", "sr_lr"], default="sr_lr")
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--device", type=str, default=None)
-    parser.add_argument("--subset-sizes", type=int, nargs="+", required=True)
+    parser.add_argument("--run-name", type=str, default=None)
     args = parser.parse_args()
 
     cfg = load_config(args.config)
+    _ = DatasetConfig.from_dict(cfg["dataset"])
+    _ = ToyPhysicsConfig.from_dict(cfg["physics"])
+    model_cfg = ModelConfig(**cfg["model"])
     train_cfg_dict = dict(cfg["train"])
     if args.epochs is not None:
         train_cfg_dict["epochs"] = args.epochs
     if args.device is not None:
         train_cfg_dict["device"] = args.device
+    if args.run_name is not None:
+        train_cfg_dict["run_name"] = args.run_name
     train_cfg_dict["save_dir"] = str((ROOT / train_cfg_dict["save_dir"]).resolve())
-
     train_cfg = TrainConfig.from_dict(train_cfg_dict)
-    model_cfg = ModelConfig(**cfg["model"])
+
     dataset_path = args.dataset if args.dataset is not None else ROOT / cfg["output"]["path"]
     if not dataset_path.exists():
         raise SystemExit(
-            f"Dataset not found at {dataset_path}. Run `python toy-les/scripts/generate_data.py` first."
+            f"Dataset not found at {dataset_path}. Run `python scripts/generate_data.py` first."
         )
 
-    summary = run_learning_curve(
+    summary = train_model(
         dataset_path=dataset_path,
+        model_name=args.model,
         model_cfg=model_cfg,
         train_cfg=train_cfg,
         seed=cfg["seed"],
-        subset_sizes=args.subset_sizes,
-        modes=["sr", "sr_lr"],
     )
 
-    print("Learning curve summary:")
-    for model_name, results in summary["results"].items():
-        for subset_size, entry in results.items():
-            print(f"  {model_name} n={subset_size}: {entry['test_metrics']}")
-    summary_path = Path(train_cfg.save_dir) / f"learning_curve_seed{cfg['seed']}.json"
-    print(f"Saved summary to {summary_path.resolve()}")
+    run_name = train_cfg.run_name or f"{args.model}_seed{cfg['seed']}"
+    print(f"Saved run outputs to {(ROOT / train_cfg.save_dir / run_name).resolve()}")
+    print(f"Best epoch: {summary['best_epoch']}")
+    print(f"Test metrics: {summary['test_metrics']}")
 
 
 if __name__ == "__main__":

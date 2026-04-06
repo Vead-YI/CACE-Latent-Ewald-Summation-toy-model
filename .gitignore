@@ -3,6 +3,5 @@ __pycache__/
 *.pyc
 
 outputs/
-toy-les/data/processed/
-toy-les/.mplcache/
-toy-les/outputs/
+data/processed/
+.mplcache/
