@@ -24,3 +24,27 @@ physics:
 
 output:
   path: data/processed/toy_les_dataset.npz
+
+model:
+  n_species: 2
+  n_rbf: 16
+  hidden_dim: 64
+  encoder_hidden_dims: [64, 64]
+  head_hidden_dims: [64, 32]
+  short_range_cutoff: 2.5
+  long_range_strength: 1.0
+  long_range_softening: 0.35
+  neutralize_charges: true
+
+train:
+  batch_size: 64
+  epochs: 150
+  lr: 0.001
+  weight_decay: 0.0
+  energy_weight: 1.0
+  force_weight: 100.0
+  grad_clip_norm: 5.0
+  device: cpu
+  log_interval: 10
+  run_name: null
+  save_dir: outputs/runs

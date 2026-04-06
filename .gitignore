@@ -2,5 +2,6 @@
 __pycache__/
 *.pyc
 
+outputs/
 toy-les/data/processed/
 toy-les/outputs/
